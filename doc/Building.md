@@ -134,11 +134,12 @@ Cleans built objects and binaries, `meson` and `ninja` installed in local prefix
 
 ### `invoke update-wrap-file [subproject]`
 
-Updates the wrap file of a subproject (those in `worker/subprojects` folder) with Meson. Usage example:
+Updates the wrap file of a subproject (those in `worker/subprojects` folder) with Meson. After updating it, `invoke setup` must be called by passing `MESON_ARGS="--reconfigure"` environment variable. Usage example:
 
 ```bash
 cd worker
 invoke update-wrap-file openssl
+MESON_ARGS="--reconfigure" invoke setup
 ```
 
 ### `invoke mediasoup-worker`
@@ -153,7 +154,7 @@ Check the meaning of useful macros in the `worker/include/Logger.hpp` header fil
 
 Binary is built at `worker/out/MEDIASOUP_BUILDTYPE/build`.
 
-In order to instruct the mediasoup Node.js module to use the "Debug"` `mediasoup-worker` binary, an environment variable must be set before running the Node.js application:
+In order to instruct the mediasoup Node.js module to use the "Debug" mediasoup-worker` binary, an environment variable must be set before running the Node.js application:
 
 ```bash
 MEDIASOUP_BUILDTYPE=Debug node myapp.js
@@ -198,10 +199,21 @@ Runs [clang-tidy](http://clang.llvm.org/extra/clang-tidy) and performs C++ code 
 **Requirements:**
 
 - `invoke clean` and `invoke mediasoup-worker` must have been called first.
-- [PyYAML](https://pyyaml.org) is required.
-  - In OSX install it with `brew install libyaml` and `sudo easy_install-X.Y pyyaml`.
+- [clang-tools-extra](https://clang.llvm.org/extra) is required.
+  - In OSX install it with `brew install llvm`.
+  - In linux the package name is `clang-tools-extra`.
 
-"MEDIASOUP_TIDY_CHECKS" environment variable with a comma separated list of checks overrides the checks defined in `.clang-tidy` file.
+**Environment variables:**
+
+- "MEDIASOUP_TIDY_CHECKS": Comma separated list of checks. Overrides the checks defined in `worker/.clang-tidy` file.
+- "MEDIASOUP_TIDY_FILES": Space separated source files to process, including their path. All `.cpp` files will be processes by default.
+- "MEDIASOUP_CLANG_TIDY_DIR": Path to directory containing clang tools (`run-clang-tidy`, `clang-tidy`, `clang-apply-replacements`).
+
+**Usage example in macOS:**
+
+```bash
+MEDIASOUP_CLANG_TIDY_DIR=/usr/local/opt/llvm/bin invoke tidy
+```
 
 ### `invoke fuzzer`
 
@@ -210,8 +222,8 @@ Builds the `mediasoup-worker-fuzzer` binary (which uses [libFuzzer](http://llvm.
 **Requirements:**
 
 - Linux with fuzzer capable clang++.
-- `CC` environment variable must point to "clang".
-- `CXX` environment variable must point to "clang++".
+- "CC" environment variable must point to `clang`.
+- "CXX" environment variable must point to `clang++`.
 
 Read the [Fuzzer](Fuzzer.md) documentation for detailed information.
 

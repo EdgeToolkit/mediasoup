@@ -200,6 +200,7 @@ export type WorkerDump = {
 
 export type WorkerEvents = {
 	died: [Error];
+	subprocessclose: [];
 	listenererror: [string, Error];
 	// Private events.
 	'@success': [];
@@ -225,7 +226,7 @@ export const workerBin = process.env.MEDIASOUP_WORKER_BIN
 				'worker',
 				'out',
 				'Debug',
-				'mediasoup-worker',
+				'mediasoup-worker'
 			)
 		: path.join(
 				__dirname,
@@ -234,7 +235,7 @@ export const workerBin = process.env.MEDIASOUP_WORKER_BIN
 				'worker',
 				'out',
 				'Release',
-				'mediasoup-worker',
+				'mediasoup-worker'
 			);
 
 const logger = new Logger('Worker');
@@ -244,7 +245,7 @@ export class Worker<
 	WorkerAppData extends AppData = AppData,
 > extends EnhancedEventEmitter<WorkerEvents> {
 	// mediasoup-worker child process.
-	#child?: ChildProcess;
+	#child: ChildProcess;
 
 	// Worker process PID.
 	readonly #pid: number;
@@ -257,6 +258,9 @@ export class Worker<
 
 	// Died dlag.
 	#died = false;
+
+	// Worker subprocess closed flag.
+	#subprocessClosed = false;
 
 	// Custom app data.
 	#appData: WorkerAppData;
@@ -295,7 +299,7 @@ export class Worker<
 
 			if (process.env.MEDIASOUP_VALGRIND_OPTIONS) {
 				spawnArgs = spawnArgs.concat(
-					process.env.MEDIASOUP_VALGRIND_OPTIONS.split(/\s+/),
+					process.env.MEDIASOUP_VALGRIND_OPTIONS.split(/\s+/)
 				);
 			}
 
@@ -335,7 +339,7 @@ export class Worker<
 		logger.debug(
 			'spawning worker process: %s %s',
 			spawnBin,
-			spawnArgs.join(' '),
+			spawnArgs.join(' ')
 		);
 
 		this.#child = spawn(
@@ -362,7 +366,7 @@ export class Worker<
 				// fd 4 (channel) : Consumer Channel fd.
 				stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'],
 				windowsHide: true,
-			},
+			}
 		);
 
 		this.#pid = this.#child.pid!;
@@ -389,7 +393,10 @@ export class Worker<
 		});
 
 		this.#child.on('exit', (code, signal) => {
-			this.#child = undefined;
+			// If killed by ourselves, do nothing.
+			if (this.#child.killed) {
+				return;
+			}
 
 			if (!spawnDone) {
 				spawnDone = true;
@@ -397,7 +404,7 @@ export class Worker<
 				if (code === 42) {
 					logger.error(
 						'worker process failed due to wrong settings [pid:%s]',
-						this.#pid,
+						this.#pid
 					);
 
 					this.close();
@@ -407,13 +414,13 @@ export class Worker<
 						'worker process failed unexpectedly [pid:%s, code:%s, signal:%s]',
 						this.#pid,
 						code,
-						signal,
+						signal
 					);
 
 					this.close();
 					this.emit(
 						'@failure',
-						new Error(`[pid:${this.#pid}, code:${code}, signal:${signal}]`),
+						new Error(`[pid:${this.#pid}, code:${code}, signal:${signal}]`)
 					);
 				}
 			} else {
@@ -421,17 +428,20 @@ export class Worker<
 					'worker process died unexpectedly [pid:%s, code:%s, signal:%s]',
 					this.#pid,
 					code,
-					signal,
+					signal
 				);
 
 				this.workerDied(
-					new Error(`[pid:${this.#pid}, code:${code}, signal:${signal}]`),
+					new Error(`[pid:${this.#pid}, code:${code}, signal:${signal}]`)
 				);
 			}
 		});
 
 		this.#child.on('error', error => {
-			this.#child = undefined;
+			// If killed by ourselves, do nothing.
+			if (this.#child.killed) {
+				return;
+			}
 
 			if (!spawnDone) {
 				spawnDone = true;
@@ -439,7 +449,7 @@ export class Worker<
 				logger.error(
 					'worker process failed [pid:%s]: %s',
 					this.#pid,
-					error.message,
+					error.message
 				);
 
 				this.close();
@@ -448,11 +458,24 @@ export class Worker<
 				logger.error(
 					'worker process error [pid:%s]: %s',
 					this.#pid,
-					error.message,
+					error.message
 				);
 
 				this.workerDied(error);
 			}
+		});
+
+		this.#child.on('close', (code, signal) => {
+			logger.debug(
+				'worker subprocess closed [pid:%s, code:%s, signal:%s]',
+				this.#pid,
+				code,
+				signal
+			);
+
+			this.#subprocessClosed = true;
+
+			this.safeEmit('subprocessclose');
 		});
 
 		// Be ready for 3rd party worker libraries logging to stdout.
@@ -493,6 +516,13 @@ export class Worker<
 	 */
 	get died(): boolean {
 		return this.#died;
+	}
+
+	/**
+	 * Whether the Worker subprocess is closed.
+	 */
+	get subprocessClosed(): boolean {
+		return this.#subprocessClosed;
 	}
 
 	/**
@@ -545,15 +575,7 @@ export class Worker<
 		this.#closed = true;
 
 		// Kill the worker process.
-		if (this.#child) {
-			// Remove event listeners but leave a fake 'error' hander to avoid
-			// propagation.
-			this.#child.removeAllListeners('exit');
-			this.#child.removeAllListeners('error');
-			this.#child.on('error', () => {});
-			this.#child.kill('SIGTERM');
-			this.#child = undefined;
-		}
+		this.#child.kill('SIGTERM');
 
 		// Close the Channel instance.
 		this.#channel.close();
@@ -598,7 +620,7 @@ export class Worker<
 		logger.debug('getResourceUsage()');
 
 		const response = await this.#channel.request(
-			FbsRequest.Method.WORKER_GET_RESOURCE_USAGE,
+			FbsRequest.Method.WORKER_GET_RESOURCE_USAGE
 		);
 
 		/* Decode Response. */
@@ -642,13 +664,13 @@ export class Worker<
 		// Build the request.
 		const requestOffset = new FbsWorker.UpdateSettingsRequestT(
 			logLevel,
-			logTags,
+			logTags
 		).pack(this.#channel.bufferBuilder);
 
 		await this.#channel.request(
 			FbsRequest.Method.WORKER_UPDATE_SETTINGS,
 			FbsRequest.Body.Worker_UpdateSettingsRequest,
-			requestOffset,
+			requestOffset
 		);
 	}
 
@@ -677,12 +699,12 @@ export class Worker<
 						? FbsTransportProtocol.UDP
 						: FbsTransportProtocol.TCP,
 					listenInfo.ip,
-					listenInfo.announcedIp,
+					listenInfo.announcedAddress ?? listenInfo.announcedIp,
 					listenInfo.port,
 					socketFlagsToFbs(listenInfo.flags),
 					listenInfo.sendBufferSize,
-					listenInfo.recvBufferSize,
-				),
+					listenInfo.recvBufferSize
+				)
 			);
 		}
 
@@ -691,13 +713,13 @@ export class Worker<
 		const createWebRtcServerRequestOffset =
 			new FbsWorker.CreateWebRtcServerRequestT(
 				webRtcServerId,
-				fbsListenInfos,
+				fbsListenInfos
 			).pack(this.#channel.bufferBuilder);
 
 		await this.#channel.request(
 			FbsRequest.Method.WORKER_CREATE_WEBRTCSERVER,
 			FbsRequest.Body.Worker_CreateWebRtcServerRequest,
-			createWebRtcServerRequestOffset,
+			createWebRtcServerRequestOffset
 		);
 
 		const webRtcServer = new WebRtcServer<WebRtcServerAppData>({
@@ -730,7 +752,7 @@ export class Worker<
 
 		// Clone given media codecs to not modify input data.
 		const clonedMediaCodecs = utils.clone<RtpCodecCapability[] | undefined>(
-			mediaCodecs,
+			mediaCodecs
 		);
 
 		// This may throw.
@@ -741,13 +763,13 @@ export class Worker<
 
 		// Get flatbuffer builder.
 		const createRouterRequestOffset = new FbsWorker.CreateRouterRequestT(
-			routerId,
+			routerId
 		).pack(this.#channel.bufferBuilder);
 
 		await this.#channel.request(
 			FbsRequest.Method.WORKER_CREATE_ROUTER,
 			FbsRequest.Body.Worker_CreateRouterRequest,
-			createRouterRequestOffset,
+			createRouterRequestOffset
 		);
 
 		const data = { rtpCapabilities };
@@ -802,7 +824,7 @@ export class Worker<
 }
 
 export function parseWorkerDumpResponse(
-	binary: FbsWorker.DumpResponse,
+	binary: FbsWorker.DumpResponse
 ): WorkerDump {
 	const dump: WorkerDump = {
 		pid: binary.pid()!,
@@ -811,11 +833,11 @@ export function parseWorkerDumpResponse(
 		channelMessageHandlers: {
 			channelRequestHandlers: utils.parseVector(
 				binary.channelMessageHandlers()!,
-				'channelRequestHandlers',
+				'channelRequestHandlers'
 			),
 			channelNotificationHandlers: utils.parseVector(
 				binary.channelMessageHandlers()!,
-				'channelNotificationHandlers',
+				'channelNotificationHandlers'
 			),
 		},
 	};

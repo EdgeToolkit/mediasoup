@@ -1,9 +1,8 @@
-# NOTE: This file and .eslintignore must contain same paths.
+# NOTE: This file and .prettierignore must contain same paths.
 
 /.cache
 /art
 /coverage
-/doc
 /node/lib
 /node/src/fbs
 /rust

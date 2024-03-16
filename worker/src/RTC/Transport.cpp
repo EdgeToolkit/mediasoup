@@ -26,7 +26,6 @@
 #include <libwebrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h> // webrtc::RtpPacketSendInfo
 #include <iterator>                                              // std::ostream_iterator
 #include <map>                                                   // std::multimap
-#include <sstream>                                               // std::ostringstream
 
 namespace RTC
 {
@@ -2260,6 +2259,7 @@ namespace RTC
 				auto* consumer = it->second;
 				auto bweType   = this->tccClient->GetBweType();
 
+				// NOLINTNEXTLINE(bugprone-too-small-loop-variable)
 				for (uint8_t i{ 1u }; i <= (baseAllocation ? 1u : priority); ++i)
 				{
 					uint32_t usedBitrate{ 0u };
@@ -3083,8 +3083,8 @@ namespace RTC
 
 			/*
 			 * The interval between RTCP packets is varied randomly over the range
-			 * [1.0,1.5] times the calculated interval to avoid unintended synchronization
-			 * of all participants.
+			 * [1.0, 1.5] times the calculated interval to avoid unintended
+			 * synchronization of all participants.
 			 */
 			interval *= static_cast<float>(Utils::Crypto::GetRandomUInt(10, 15)) / 10;
 

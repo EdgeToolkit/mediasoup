@@ -39,7 +39,7 @@ beforeEach(async () => {
 		ctx.udpSocket!.bind(0, '127.0.0.1', resolve);
 	});
 
-	const remoteUdpIp = ctx.plainTransport.tuple.localIp;
+	const remoteUdpIp = ctx.plainTransport.tuple.localAddress;
 	const remoteUdpPort = ctx.plainTransport.tuple.localPort;
 	const { OS, MIS } = ctx.plainTransport.sctpParameters!;
 
@@ -68,7 +68,7 @@ beforeEach(async () => {
 	await Promise.race([
 		new Promise<void>(resolve => ctx.sctpSocket.on('connect', resolve)),
 		new Promise<void>((resolve, reject) =>
-			setTimeout(() => reject(new Error('SCTP connection timeout')), 3000),
+			setTimeout(() => reject(new Error('SCTP connection timeout')), 3000)
 		),
 	]);
 
@@ -99,10 +99,16 @@ afterEach(async () => {
 	ctx.sctpSocket?.end();
 	ctx.worker?.close();
 
+	if (ctx.worker?.subprocessClosed === false) {
+		await new Promise<void>(resolve =>
+			ctx.worker?.on('subprocessclose', resolve)
+		);
+	}
+
 	// NOTE: For some reason we have to wait a bit for the SCTP stuff to release
 	// internal things, otherwise Jest reports open handles. We don't care much
 	// honestly.
-	await new Promise(resolve => setTimeout(resolve, 2000));
+	await new Promise(resolve => setTimeout(resolve, 1000));
 });
 
 test('ordered DataProducer delivers all SCTP messages to the DataConsumer', async () => {
@@ -116,8 +122,7 @@ test('ordered DataProducer delivers all SCTP messages to the DataConsumer', asyn
 	// It must be zero because it's the first DataConsumer on the plainTransport.
 	expect(ctx.dataConsumer!.sctpStreamParameters?.streamId).toBe(0);
 
-	// eslint-disable-next-line no-async-promise-executor
-	await new Promise<void>(async (resolve, reject) => {
+	await new Promise<void>((resolve, reject) => {
 		sendNextMessage();
 
 		async function sendNextMessage(): Promise<void> {
@@ -168,22 +173,22 @@ test('ordered DataProducer delivers all SCTP messages to the DataConsumer', asyn
 				if (id !== numReceivedMessages) {
 					reject(
 						new Error(
-							`id ${id} in message should match numReceivedMessages ${numReceivedMessages}`,
-						),
+							`id ${id} in message should match numReceivedMessages ${numReceivedMessages}`
+						)
 					);
 				} else if (id === numMessages) {
 					resolve();
 				} else if (id < numMessages / 2 && ppid !== sctp.PPID.WEBRTC_STRING) {
 					reject(
 						new Error(
-							`ppid in message with id ${id} should be ${sctp.PPID.WEBRTC_STRING} but it is ${ppid}`,
-						),
+							`ppid in message with id ${id} should be ${sctp.PPID.WEBRTC_STRING} but it is ${ppid}`
+						)
 					);
 				} else if (id > numMessages / 2 && ppid !== sctp.PPID.WEBRTC_BINARY) {
 					reject(
 						new Error(
-							`ppid in message with id ${id} should be ${sctp.PPID.WEBRTC_BINARY} but it is ${ppid}`,
-						),
+							`ppid in message with id ${id} should be ${sctp.PPID.WEBRTC_BINARY} but it is ${ppid}`
+						)
 					);
 
 					return;

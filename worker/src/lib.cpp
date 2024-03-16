@@ -20,7 +20,6 @@
 #include "RTC/SrtpSession.hpp"
 #include <uv.h>
 #include <absl/container/flat_hash_map.h>
-#include <cerrno>
 #include <csignal> // sigaction()
 #include <string>
 
@@ -33,8 +32,6 @@ extern "C" int mediasoup_worker_run(
   const char* version,
   int consumerChannelFd,
   int producerChannelFd,
-  int /*payloadConsumeChannelFd*/,
-  int /*payloadProduceChannelFd*/,
   ChannelReadFn channelReadFn,
   ChannelReadCtx channelReadCtx,
   ChannelWriteFn channelWriteFn,

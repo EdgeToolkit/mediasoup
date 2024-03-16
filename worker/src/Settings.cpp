@@ -24,14 +24,14 @@ static std::mutex GlobalSyncMutex;
 
 thread_local struct Settings::Configuration Settings::configuration;
 // clang-format off
-absl::flat_hash_map<std::string, LogLevel> Settings::string2LogLevel =
+absl::flat_hash_map<std::string, LogLevel> Settings::String2LogLevel =
 {
 	{ "debug", LogLevel::LOG_DEBUG },
 	{ "warn",  LogLevel::LOG_WARN  },
 	{ "error", LogLevel::LOG_ERROR },
 	{ "none",  LogLevel::LOG_NONE  }
 };
-absl::flat_hash_map<LogLevel, std::string> Settings::logLevel2String =
+absl::flat_hash_map<LogLevel, std::string> Settings::LogLevel2String =
 {
 	{ LogLevel::LOG_DEBUG, "debug" },
 	{ LogLevel::LOG_WARN,  "warn"  },
@@ -273,23 +273,20 @@ void Settings::PrintConfiguration()
 	MS_DEBUG_TAG(info, "<configuration>");
 
 	MS_DEBUG_TAG(
-	  info,
-	  "  logLevel             : %s",
-	  Settings::logLevel2String[Settings::configuration.logLevel].c_str());
-	MS_DEBUG_TAG(info, "  logTags              : %s", logTagsStream.str().c_str());
-	MS_DEBUG_TAG(info, "  rtcMinPort           : %" PRIu16, Settings::configuration.rtcMinPort);
-	MS_DEBUG_TAG(info, "  rtcMaxPort           : %" PRIu16, Settings::configuration.rtcMaxPort);
+	  info, "  logLevel: %s", Settings::LogLevel2String[Settings::configuration.logLevel].c_str());
+	MS_DEBUG_TAG(info, "  logTags: %s", logTagsStream.str().c_str());
+	MS_DEBUG_TAG(info, "  rtcMinPort: %" PRIu16, Settings::configuration.rtcMinPort);
+	MS_DEBUG_TAG(info, "  rtcMaxPort: %" PRIu16, Settings::configuration.rtcMaxPort);
 	if (!Settings::configuration.dtlsCertificateFile.empty())
 	{
 		MS_DEBUG_TAG(
-		  info, "  dtlsCertificateFile  : %s", Settings::configuration.dtlsCertificateFile.c_str());
-		MS_DEBUG_TAG(
-		  info, "  dtlsPrivateKeyFile   : %s", Settings::configuration.dtlsPrivateKeyFile.c_str());
+		  info, "  dtlsCertificateFile: %s", Settings::configuration.dtlsCertificateFile.c_str());
+		MS_DEBUG_TAG(info, "  dtlsPrivateKeyFile: %s", Settings::configuration.dtlsPrivateKeyFile.c_str());
 	}
 	if (!Settings::configuration.libwebrtcFieldTrials.empty())
 	{
 		MS_DEBUG_TAG(
-		  info, "  libwebrtcFieldTrials : %s", Settings::configuration.libwebrtcFieldTrials.c_str());
+		  info, "  libwebrtcFieldTrials: %s", Settings::configuration.libwebrtcFieldTrials.c_str());
 	}
 
 	MS_DEBUG_TAG(info, "</configuration>");
@@ -348,12 +345,12 @@ void Settings::SetLogLevel(std::string& level)
 	// Lowcase given level.
 	Utils::String::ToLowerCase(level);
 
-	if (Settings::string2LogLevel.find(level) == Settings::string2LogLevel.end())
+	if (Settings::String2LogLevel.find(level) == Settings::String2LogLevel.end())
 	{
 		MS_THROW_TYPE_ERROR("invalid value '%s' for logLevel", level.c_str());
 	}
 
-	Settings::configuration.logLevel = Settings::string2LogLevel[level];
+	Settings::configuration.logLevel = Settings::String2LogLevel[level];
 }
 
 void Settings::SetLogTags(const std::vector<std::string>& tags)

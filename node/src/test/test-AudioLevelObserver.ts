@@ -27,8 +27,14 @@ beforeEach(async () => {
 	ctx.router = await ctx.worker.createRouter({ mediaCodecs: ctx.mediaCodecs });
 });
 
-afterEach(() => {
+afterEach(async () => {
 	ctx.worker?.close();
+
+	if (ctx.worker?.subprocessClosed === false) {
+		await new Promise<void>(resolve =>
+			ctx.worker?.on('subprocessclose', resolve)
+		);
+	}
 });
 
 test('router.createAudioLevelObserver() succeeds', async () => {
@@ -52,26 +58,26 @@ test('router.createAudioLevelObserver() succeeds', async () => {
 
 test('router.createAudioLevelObserver() with wrong arguments rejects with TypeError', async () => {
 	await expect(
-		ctx.router!.createAudioLevelObserver({ maxEntries: 0 }),
+		ctx.router!.createAudioLevelObserver({ maxEntries: 0 })
 	).rejects.toThrow(TypeError);
 
 	await expect(
-		ctx.router!.createAudioLevelObserver({ maxEntries: -10 }),
-	).rejects.toThrow(TypeError);
-
-	await expect(
-		// @ts-ignore
-		ctx.router!.createAudioLevelObserver({ threshold: 'foo' }),
+		ctx.router!.createAudioLevelObserver({ maxEntries: -10 })
 	).rejects.toThrow(TypeError);
 
 	await expect(
 		// @ts-ignore
-		ctx.router!.createAudioLevelObserver({ interval: false }),
+		ctx.router!.createAudioLevelObserver({ threshold: 'foo' })
 	).rejects.toThrow(TypeError);
 
 	await expect(
 		// @ts-ignore
-		ctx.router!.createAudioLevelObserver({ appData: 'NOT-AN-OBJECT' }),
+		ctx.router!.createAudioLevelObserver({ interval: false })
+	).rejects.toThrow(TypeError);
+
+	await expect(
+		// @ts-ignore
+		ctx.router!.createAudioLevelObserver({ appData: 'NOT-AN-OBJECT' })
 	).rejects.toThrow(TypeError);
 }, 2000);
 

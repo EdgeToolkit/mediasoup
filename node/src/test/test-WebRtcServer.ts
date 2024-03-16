@@ -1,5 +1,4 @@
-// @ts-ignore
-import * as pickPort from 'pick-port';
+import { pickPort } from 'pick-port';
 import * as mediasoup from '../';
 import { InvalidStateError } from '../errors';
 
@@ -13,8 +12,14 @@ beforeEach(async () => {
 	ctx.worker = await mediasoup.createWorker();
 });
 
-afterEach(() => {
+afterEach(async () => {
 	ctx.worker?.close();
+
+	if (ctx.worker?.subprocessClosed === false) {
+		await new Promise<void>(resolve =>
+			ctx.worker?.on('subprocessclose', resolve)
+		);
+	}
 });
 
 test('worker.createWebRtcServer() succeeds', async () => {
@@ -22,7 +27,11 @@ test('worker.createWebRtcServer() succeeds', async () => {
 
 	ctx.worker!.observer.once('newwebrtcserver', onObserverNewWebRtcServer);
 
-	const port1 = await pickPort({ ip: '127.0.0.1', reserveTimeout: 0 });
+	const port1 = await pickPort({
+		type: 'udp',
+		ip: '127.0.0.1',
+		reserveTimeout: 0,
+	});
 	const port2 = await pickPort({
 		type: 'tcp',
 		ip: '127.0.0.1',
@@ -39,7 +48,7 @@ test('worker.createWebRtcServer() succeeds', async () => {
 			{
 				protocol: 'tcp',
 				ip: '127.0.0.1',
-				announcedIp: '1.2.3.4',
+				announcedAddress: 'foo.bar.org',
 				port: port2,
 			},
 		],
@@ -96,7 +105,7 @@ test('worker.createWebRtcServer() without specifying port succeeds', async () =>
 			{
 				protocol: 'tcp',
 				ip: '127.0.0.1',
-				announcedIp: '1.2.3.4',
+				announcedAddress: '1.2.3.4',
 			},
 		],
 		appData: { foo: 123 },
@@ -144,24 +153,32 @@ test('worker.createWebRtcServer() with wrong arguments rejects with TypeError', 
 
 	await expect(
 		// @ts-ignore
-		ctx.worker!.createWebRtcServer({ listenInfos: 'NOT-AN-ARRAY' }),
+		ctx.worker!.createWebRtcServer({ listenInfos: 'NOT-AN-ARRAY' })
 	).rejects.toThrow(TypeError);
 
 	await expect(
 		// @ts-ignore
-		ctx.worker!.createWebRtcServer({ listenInfos: ['NOT-AN-OBJECT'] }),
+		ctx.worker!.createWebRtcServer({ listenInfos: ['NOT-AN-OBJECT'] })
 	).rejects.toThrow(Error);
 
 	// Empty listenInfos so should fail.
 	await expect(
-		ctx.worker!.createWebRtcServer({ listenInfos: [] }),
+		ctx.worker!.createWebRtcServer({ listenInfos: [] })
 	).rejects.toThrow(TypeError);
 }, 2000);
 
 test('worker.createWebRtcServer() with unavailable listenInfos rejects with Error', async () => {
 	const worker2 = await mediasoup.createWorker();
-	const port1 = await pickPort({ ip: '127.0.0.1', reserveTimeout: 0 });
-	const port2 = await pickPort({ ip: '127.0.0.1', reserveTimeout: 0 });
+	const port1 = await pickPort({
+		type: 'udp',
+		ip: '127.0.0.1',
+		reserveTimeout: 0,
+	});
+	const port2 = await pickPort({
+		type: 'udp',
+		ip: '127.0.0.1',
+		reserveTimeout: 0,
+	});
 
 	// Using an unavailable listen IP.
 	await expect(
@@ -178,7 +195,7 @@ test('worker.createWebRtcServer() with unavailable listenInfos rejects with Erro
 					port: port2,
 				},
 			],
-		}),
+		})
 	).rejects.toThrow(Error);
 
 	// Using the same UDP port in two listenInfos.
@@ -193,11 +210,11 @@ test('worker.createWebRtcServer() with unavailable listenInfos rejects with Erro
 				{
 					protocol: 'udp',
 					ip: '127.0.0.1',
-					announcedIp: '1.2.3.4',
+					announcedAddress: '1.2.3.4',
 					port: port1,
 				},
 			],
-		}),
+		})
 	).rejects.toThrow(Error);
 
 	await ctx.worker!.createWebRtcServer({
@@ -220,7 +237,7 @@ test('worker.createWebRtcServer() with unavailable listenInfos rejects with Erro
 					port: port1,
 				},
 			],
-		}),
+		})
 	).rejects.toThrow(Error);
 
 	worker2.close();
@@ -229,17 +246,25 @@ test('worker.createWebRtcServer() with unavailable listenInfos rejects with Erro
 test('worker.createWebRtcServer() rejects with InvalidStateError if Worker is closed', async () => {
 	ctx.worker!.close();
 
-	const port = await pickPort({ ip: '127.0.0.1', reserveTimeout: 0 });
+	const port = await pickPort({
+		type: 'udp',
+		ip: '127.0.0.1',
+		reserveTimeout: 0,
+	});
 
 	await expect(
 		ctx.worker!.createWebRtcServer({
 			listenInfos: [{ protocol: 'udp', ip: '127.0.0.1', port }],
-		}),
+		})
 	).rejects.toThrow(InvalidStateError);
 }, 2000);
 
 test('webRtcServer.close() succeeds', async () => {
-	const port = await pickPort({ ip: '127.0.0.1', reserveTimeout: 0 });
+	const port = await pickPort({
+		type: 'udp',
+		ip: '127.0.0.1',
+		reserveTimeout: 0,
+	});
 	const webRtcServer = await ctx.worker!.createWebRtcServer({
 		listenInfos: [{ protocol: 'udp', ip: '127.0.0.1', port }],
 	});
@@ -253,7 +278,11 @@ test('webRtcServer.close() succeeds', async () => {
 }, 2000);
 
 test('WebRtcServer emits "workerclose" if Worker is closed', async () => {
-	const port = await pickPort({ ip: '127.0.0.1', reserveTimeout: 0 });
+	const port = await pickPort({
+		type: 'udp',
+		ip: '127.0.0.1',
+		reserveTimeout: 0,
+	});
 	const webRtcServer = await ctx.worker!.createWebRtcServer({
 		listenInfos: [{ protocol: 'tcp', ip: '127.0.0.1', port }],
 	});
@@ -271,7 +300,11 @@ test('WebRtcServer emits "workerclose" if Worker is closed', async () => {
 }, 2000);
 
 test('router.createWebRtcTransport() with webRtcServer succeeds and transport is closed', async () => {
-	const port1 = await pickPort({ ip: '127.0.0.1', reserveTimeout: 0 });
+	const port1 = await pickPort({
+		type: 'udp',
+		ip: '127.0.0.1',
+		reserveTimeout: 0,
+	});
 	const port2 = await pickPort({
 		type: 'tcp',
 		ip: '127.0.0.1',
@@ -289,11 +322,11 @@ test('router.createWebRtcTransport() with webRtcServer succeeds and transport is
 
 	webRtcServer.observer.once(
 		'webrtctransporthandled',
-		onObserverWebRtcTransportHandled,
+		onObserverWebRtcTransportHandled
 	);
 	webRtcServer.observer.once(
 		'webrtctransportunhandled',
-		onObserverWebRtcTransportUnhandled,
+		onObserverWebRtcTransportUnhandled
 	);
 
 	const router = await ctx.worker!.createRouter();
@@ -366,7 +399,11 @@ test('router.createWebRtcTransport() with webRtcServer succeeds and transport is
 }, 2000);
 
 test('router.createWebRtcTransport() with webRtcServer succeeds and webRtcServer is closed', async () => {
-	const port1 = await pickPort({ ip: '127.0.0.1', reserveTimeout: 0 });
+	const port1 = await pickPort({
+		type: 'udp',
+		ip: '127.0.0.1',
+		reserveTimeout: 0,
+	});
 	const port2 = await pickPort({
 		type: 'tcp',
 		ip: '127.0.0.1',
@@ -384,11 +421,11 @@ test('router.createWebRtcTransport() with webRtcServer succeeds and webRtcServer
 
 	webRtcServer.observer.once(
 		'webrtctransporthandled',
-		onObserverWebRtcTransportHandled,
+		onObserverWebRtcTransportHandled
 	);
 	webRtcServer.observer.once(
 		'webrtctransportunhandled',
-		onObserverWebRtcTransportUnhandled,
+		onObserverWebRtcTransportUnhandled
 	);
 
 	const router = await ctx.worker!.createRouter();

@@ -66,11 +66,10 @@ UdpSocketHandle::UdpSocketHandle(uv_udp_t* uvHandle) : uvHandle(uvHandle)
 {
 	MS_TRACE();
 
-	int err;
-
 	this->uvHandle->data = static_cast<void*>(this);
 
-	err = uv_udp_recv_start(
+	// NOLINTNEXTLINE(misc-const-correctness)
+	int err = uv_udp_recv_start(
 	  this->uvHandle, static_cast<uv_alloc_cb>(onAlloc), static_cast<uv_udp_recv_cb>(onRecv));
 
 	if (err != 0)
@@ -136,9 +135,9 @@ void UdpSocketHandle::Close()
 void UdpSocketHandle::Dump() const
 {
 	MS_DUMP("<UdpSocketHandle>");
-	MS_DUMP("  localIp   : %s", this->localIp.c_str());
-	MS_DUMP("  localPort : %" PRIu16, static_cast<uint16_t>(this->localPort));
-	MS_DUMP("  closed    : %s", !this->closed ? "open" : "closed");
+	MS_DUMP("  localIp: %s", this->localIp.c_str());
+	MS_DUMP("  localPort: %" PRIu16, static_cast<uint16_t>(this->localPort));
+	MS_DUMP("  closed: %s", this->closed ? "yes" : "no");
 	MS_DUMP("</UdpSocketHandle>");
 }
 
@@ -364,6 +363,7 @@ bool UdpSocketHandle::SetLocalAddress()
 	return true;
 }
 
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 inline void UdpSocketHandle::OnUvRecvAlloc(size_t /*suggestedSize*/, uv_buf_t* buf)
 {
 	MS_TRACE();
@@ -409,6 +409,7 @@ inline void UdpSocketHandle::OnUvRecv(
 	}
 }
 
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 inline void UdpSocketHandle::OnUvSend(int status, UdpSocketHandle::onSendCallback* cb)
 {
 	MS_TRACE();
